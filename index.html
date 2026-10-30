@@ -534,8 +534,26 @@ if (window.L) {
   const streetMap = L.tileLayer(ESRI + "World_Street_Map/MapServer/tile/{z}/{y}/{x}", { maxZoom: 17, attribution: credit });
   const satMap = L.tileLayer(ESRI + "World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 17, attribution: credit });
   const topoMap = L.tileLayer(ESRI + "World_Topo_Map/MapServer/tile/{z}/{y}/{x}", { maxZoom: 17, attribution: credit });
-  grayMap.addTo(map);
-  L.control.layers({ "🌿 초록 섬 지도 (기본)": grayMap, "⛰️ 지형 지도": topoMap, "🗺️ 기본 지도(노랑·초록)": streetMap, "🛰️ 위성 사진": satMap }, null, { position: "topleft" }).addTo(map);
+  // OpenStreetMap은 "어느 사이트에서 왔는지"(Referer) 정보가 없는 요청(파일을 더블클릭해서 연 경우)을 차단한다.
+  // 그래서 배포된 주소(https)·로컬 서버(http)에서는 OpenStreetMap을, 파일로 열면 Esri 지형 지도를 기본으로 쓴다.
+  const web = /^https?:$/.test(location.protocol);
+  const osmMap = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" });
+  const otmMap = L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", { maxZoom: 17, subdomains: "abc",
+    attribution: "Map data &copy; OpenStreetMap contributors, SRTM | Style &copy; OpenTopoMap (CC-BY-SA)" });
+  // 지형지물이 보이는 지도 위에 제주도만 초록색을 곱해서(multiply) 입힌다 → 도로·건물·지명은 그대로 보이고 섬은 초록빛
+  map.createPane("greenfx").style.zIndex = 245;
+  map.getPane("greenfx").style.mixBlendMode = "multiply";
+  map.getPane("greenfx").style.pointerEvents = "none";
+  const greenTint = L.layerGroup(ISLAND.map(r => L.polygon(r, { pane: "greenfx", color: "#6bb97f", weight: 1, fillColor: "#a8e4b4", fillOpacity: 1, interactive: false })));
+  const withGreen = new Set([osmMap, topoMap, streetMap]);
+  const base = web ? osmMap : topoMap;
+  base.addTo(map); greenTint.addTo(map);
+  map.on("baselayerchange", e => { if (withGreen.has(e.layer)) greenTint.addTo(map); else map.removeLayer(greenTint); });
+  const choices = {};
+  if (web) { choices["🌿 지형지물 자세히 (OpenStreetMap)"] = osmMap; choices["⛰️ 등고선 지형 (OpenTopoMap)"] = otmMap; }
+  choices["🌿 Esri 지형 지도" + (web ? "" : " (기본)")] = topoMap;
+  choices["🛣️ Esri 도로 지도"] = streetMap; choices["🩶 단순한 초록 섬 지도"] = grayMap; choices["🛰️ 위성 사진"] = satMap;
+  L.control.layers(choices, null, { position: "topleft" }).addTo(map);
   pinLayer = L.layerGroup().addTo(map);
   recLayer = L.layerGroup().addTo(map);
   courseLayer = L.layerGroup().addTo(map);
