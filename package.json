@@ -1,0 +1,7 @@
+{
+  "name": "jeju-eodigajaen",
+  "private": true,
+  "version": "2.0.0",
+  "description": "제주 어디가잰? — 제주 역사문화 답사 지도",
+  "engines": { "node": ">=18" }
+}
